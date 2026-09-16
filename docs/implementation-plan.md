@@ -8,15 +8,18 @@ This plan is sequenced so that **every phase leaves something demonstrable**. If
 the build stops after phase 1, there is still a clickable mock-up; after phase 4
 there is a working MCP demo even if writes never land.
 
-Status as of 2026-09-16: phases 0 through 4 are complete and deployed.
-`risk_demo` is live in Cloudflare D1. `worker/` — a second Worker, per the
-phase 3 fallback option — deploys automatically on every push to `main` via
-`.github/workflows/deploy-risk-mcp.yml`, reusing the same Cloudflare
-credentials as the static site's `deploy.yml`, and is live at
+Status as of 2026-09-16: phases 0 through 4 are complete, deployed, and
+verified end-to-end. `risk_demo` is live in Cloudflare D1. `worker/` — a
+second Worker, per the phase 3 fallback option — deploys automatically on
+every push to `main` via `.github/workflows/deploy-risk-mcp.yml`, reusing the
+same Cloudflare credentials as the static site's `deploy.yml`, and is live at
 [risk-mcp.gcameron.com](https://risk-mcp.gcameron.com) (a custom domain
 attached in the Cloudflare dashboard, alongside the static site's own
-[demo-risk-system.gcameron.com](https://demo-risk-system.gcameron.com)). See
-[`worker/README.md`](../worker/README.md).
+[demo-risk-system.gcameron.com](https://demo-risk-system.gcameron.com)).
+Claude, connected to the live MCP server with no other context, answered
+`risk_summary`, `get_incident` and `list_controls` correctly against the
+worked examples in `docs/mcp-server.md` and `docs/demo-script.md` — see the
+phase 4 acceptance note below. See [`worker/README.md`](../worker/README.md).
 
 ---
 
@@ -170,7 +173,7 @@ The actual point of the exercise.
 | `risk_summary` | One call answers "how are we doing?" | ✅ |
 | `list_reference`, `search` | Name-to-id resolution, and a keyword entry point | ✅ |
 | Tool annotations | `readOnlyHint: true`, `idempotentHint: true` on all eight | ✅ |
-| Connect from Claude and rehearse | Against `docs/demo-script.md`, connector URL `https://risk-mcp.gcameron.com/mcp` | ⬜ next step |
+| Connect from Claude and rehearse | Against `docs/demo-script.md`, connector URL `https://risk-mcp.gcameron.com/mcp` | ✅ |
 
 Full argument and return specification: [`docs/mcp-server.md`](mcp-server.md).
 
@@ -191,13 +194,19 @@ Full argument and return specification: [`docs/mcp-server.md`](mcp-server.md).
   tool result with `isError: true` and a plain message naming valid values,
   not a stack trace or a JSON-RPC protocol error.
 
-**Acceptance:** Claude, connected to the server with no other context, can
-answer every question in the demo script — and the answers match the
-dashboard. Not yet run end-to-end (needs deployment), but every SQL query
-`db.js` runs was validated directly against the live `risk_demo` database
-during this build pass, including the worked examples in
-`docs/mcp-server.md` — e.g. `risk_summary`'s counts came back as "1 critical,
-3 high" open, exactly as documented.
+**Acceptance:** met. Claude, connected to the live server
+(`https://risk-mcp.gcameron.com/mcp`) with no other context, answered
+correctly:
+
+- `risk_summary` → 22 incidents, 6 open (1 critical, 3 high), £1.05m net loss
+  over 12 months, £622k carried on open incidents, 37 actions raised (17
+  open, 4 overdue, 1 blocked) — matching `docs/demo-script.md`'s memorised
+  numbers exactly.
+- `get_incident(INC-2026-018)` → CTL-02 failed, both remediation actions
+  present, full update timeline — matching the worked example in
+  `docs/mcp-server.md`.
+- `list_controls(failed_only=true)` → CTL-07, CTL-02, CTL-10, CTL-13 among
+  the results — the "which controls keep letting us down" worked example.
 
 ---
 
