@@ -1,15 +1,142 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
-    <title>About</title>
-    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/css/styles.css">
+    <meta name="description" content="What this demo is, what is real, what is mocked, and how it is built." />
+    <title>About · Meridian Risk</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/css/styles.css" />
+    <script>
+      try { const t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+    </script>
+    <script type="module" src="/assets/js/pages/static-page.js"></script>
   </head>
-  <body>
-    <h1>About</h1>
-    <p><a href="/">Back home</a></p>
+  <body
+    class="app"
+    data-page="about"
+    data-page-title="About this demo"
+    data-eyebrow="Meridian Risk"
+    data-sub="A working front end over an operational risk database, built to show what changes when an assistant can query that database directly over MCP."
+  >
+    <a class="skip-link" href="#main">Skip to content</a>
+    <aside id="sidebar"></aside>
+    <div class="content">
+      <header id="topbar"></header>
+      <main class="main" id="main">
+        <div class="card">
+          <div class="card__head"><h2 class="card__title">What this is</h2></div>
+          <div class="card__body prose">
+            <p>Most operational risk tooling is a database with forms on top. The data is genuinely
+              useful — incidents, the controls that failed, the actions raised to fix them — and it is
+              almost always trapped behind a reporting cycle. Someone asks "what's our exposure in
+              Payments?" and the answer arrives a week later as a slide.</p>
+            <p>This demo exists to show the alternative: the same database, with a small MCP server in
+              front of it, so an assistant can answer that question in the conversation where it was
+              asked. The web interface here is the human view of exactly the same data — deliberately so,
+              because a demo where the chat answer and the dashboard disagree is not a demo of anything.</p>
+            <p><strong>Everything in it is fictional.</strong> Meridian Financial Group does not exist.
+              The twenty-two incidents, the people who own them and the losses attached to them were
+              written to be plausible, varied and safe to show to anyone.</p>
+          </div>
+        </div>
+
+        <div class="grid grid--2">
+          <div class="card">
+            <div class="card__head"><h2 class="card__title">What is real today</h2></div>
+            <div class="card__body prose">
+              <ul>
+                <li>The <strong>data model</strong> — twelve tables with real foreign keys, check
+                  constraints and four views, ready to apply to Cloudflare D1.
+                  See <a href="/data-model/">Data model</a>.</li>
+                <li>The <strong>dataset</strong> — 9 departments, 16 people, 12 systems, 13 processes,
+                  14 risk categories, 20 controls, 22 incidents, 37 actions and their join rows,
+                  with a generated <code>db/seed.sql</code>.</li>
+                <li>The <strong>front end</strong> — every screen you can click, running on that
+                  dataset: filtering, sorting, the heat map, the trend, the incident records.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__head"><h2 class="card__title">What is not built yet</h2></div>
+            <div class="card__body prose">
+              <ul>
+                <li>The <strong>MCP server</strong> itself. It is specified down to the tool list and
+                  arguments on the <a href="/mcp/">MCP server</a> page, but no Worker code is written.</li>
+                <li>The <strong>/api routes</strong> over D1. The browser reads
+                  <code>/assets/data/demo.json</code>; the data access layer is written so that
+                  swapping in <code>fetch('/api/incidents')</code> touches one module.</li>
+                <li><strong>Writes.</strong> Nothing in this interface edits anything. Adding an
+                  incident or closing an action is phase two, and it arrives with an audit trail.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h2 class="card__title">How it is built</h2></div>
+          <div class="card__body prose">
+            <p>Static HTML, CSS and ES modules — no framework, no build step, no dependencies. It is
+              served by a Cloudflare Worker with static assets, deployed from <code>main</code> by GitHub
+              Actions. The whole site is a handful of files:</p>
+<pre><code>index.html              dashboard
+incidents/              register + detail record
+actions/  controls/     the two other registers
+registers/              departments, systems, processes, people
+data-model/  mcp/  about/
+
+assets/js/api.js        the only module that knows where data comes from
+assets/js/ui.js         shell, formatters, status badges, sortable tables
+assets/js/charts.js     inline-SVG line, bar, heat map and status meter
+assets/data/demo.json   the dataset
+db/schema.sql           D1 DDL
+db/seed.sql             generated from demo.json</code></pre>
+            <p>Charts are hand-rolled SVG rather than a charting library: single-series marks use one
+              blue, magnitude uses a one-hue blue ramp, and a reserved four-colour status palette is used
+              only for state — always alongside a text label, never colour on its own. Each chart also
+              offers its underlying numbers as a table.</p>
+            <p>Light and dark themes are both selected rather than inverted, and the toggle in the header
+              overrides the system preference.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h2 class="card__title">Reading the data</h2></div>
+          <div class="card__body prose">
+            <p>A few conventions worth knowing before you click around:</p>
+            <ul>
+              <li><strong>Risk score</strong> is likelihood × impact, each scored 1–5. The heat map plots
+                open incidents on that grid; selecting a cell filters the register to it.</li>
+              <li><strong>Severity</strong> is the assessed seriousness of the event, independent of the
+                score. <strong>Status</strong> moves open → under investigation → pending action → closed.</li>
+              <li><strong>Net loss</strong> is gross loss less recoveries. Several incidents carry a zero
+                net loss and still matter — a near miss on sanctions screening costs nothing and is
+                reportable.</li>
+              <li><strong>Control effectiveness</strong> is the result of the last test.
+                The <em>failures</em> column counts incidents where that control was in scope and did not
+                hold — a control can be rated partially effective and still have failed twice.</li>
+              <li><strong>Today</strong> is pinned to the dataset's <code>as_of</code> date, so overdue
+                actions stay overdue and the demo does not drift.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h2 class="card__title">Where to go next</h2></div>
+          <div class="card__body prose">
+            <ul>
+              <li><a href="/">Dashboard</a> — the twelve-month position.</li>
+              <li><a href="/incidents/detail.html?ref=INC-2026-018">INC-2026-018</a> — the clearest
+                example of the relationships working: a duplicate payment file, the control that was
+                keyed on the wrong thing, and the two actions raised against it.</li>
+              <li><a href="/controls/?control=CTL-02">CTL-02</a> — the same story from the control's side.</li>
+              <li><a href="/data-model/">Data model</a> and <a href="/mcp/">MCP server</a> — the design
+                behind both.</li>
+            </ul>
+          </div>
+        </div>
+      </main>
+    </div>
   </body>
 </html>

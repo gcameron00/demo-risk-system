@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="The Cloudflare D1 data model behind the demo — twelve tables covering incidents, actions, controls, departments, people, processes and systems." />
+    <title>Data model · Meridian Risk</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/css/styles.css" />
+    <script>
+      try { const t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+    </script>
+    <script type="module" src="/assets/js/pages/static-page.js"></script>
+  </head>
+  <body
+    class="app"
+    data-page="data-model"
+    data-page-title="Data model"
+    data-eyebrow="Reference"
+    data-sub="Twelve tables in Cloudflare D1. Incidents sit in the middle; everything else either explains an incident or is what gets changed because of one."
+  >
+    <a class="skip-link" href="#main">Skip to content</a>
+    <aside id="sidebar"></aside>
+    <div class="content">
+      <header id="topbar"></header>
+      <main class="main" id="main">
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">Entity relationships</h2>
+            <span class="card__sub">Full DDL in <code>db/schema.sql</code></span>
+          </div>
+          <div class="card__body">
+            <svg class="erd" viewBox="0 0 920 520" role="img"
+                 aria-label="Entity relationship diagram: departments, processes, risk categories, users, systems and controls all relate to incidents; incidents raise actions and carry updates.">
+
+              <!-- departments -->
+              <rect class="erd-box" x="20" y="24" width="190" height="96" rx="6" />
+              <text class="erd-head" x="34" y="44">departments</text>
+              <text class="erd-field" x="34" y="62">id · code · name</text>
+              <text class="erd-field" x="34" y="78">parent_department_id</text>
+              <text class="erd-field" x="34" y="94">head_user_id</text>
+              <text class="erd-field" x="34" y="110">location · cost_centre</text>
+
+              <!-- processes -->
+              <rect class="erd-box" x="20" y="156" width="190" height="96" rx="6" />
+              <text class="erd-head" x="34" y="176">processes</text>
+              <text class="erd-field" x="34" y="194">id · code · name</text>
+              <text class="erd-field" x="34" y="210">department_id</text>
+              <text class="erd-field" x="34" y="226">owner_user_id</text>
+              <text class="erd-field" x="34" y="242">criticality · frequency</text>
+
+              <!-- incident_updates -->
+              <rect class="erd-box" x="20" y="392" width="190" height="82" rx="6" />
+              <text class="erd-head" x="34" y="412">incident_updates</text>
+              <text class="erd-field" x="34" y="430">id · incident_id</text>
+              <text class="erd-field" x="34" y="446">user_id · created_at</text>
+              <text class="erd-field" x="34" y="462">note · status_from/to</text>
+
+              <!-- risk_categories -->
+              <rect class="erd-box" x="365" y="14" width="190" height="68" rx="6" />
+              <text class="erd-head" x="379" y="34">risk_categories</text>
+              <text class="erd-field" x="379" y="52">id · code · name</text>
+              <text class="erd-field" x="379" y="68">parent_id · basel_level</text>
+
+              <!-- incidents -->
+              <rect class="erd-box erd-box--core" x="365" y="118" width="190" height="178" rx="6" />
+              <text class="erd-head" x="379" y="138">incidents</text>
+              <text class="erd-field" x="379" y="156">id · reference · title</text>
+              <text class="erd-field" x="379" y="172">category_id</text>
+              <text class="erd-field" x="379" y="188">department_id</text>
+              <text class="erd-field" x="379" y="204">process_id</text>
+              <text class="erd-field" x="379" y="220">primary_system_id</text>
+              <text class="erd-field" x="379" y="236">owner_user_id</text>
+              <text class="erd-field" x="379" y="252">reported_by_user_id</text>
+              <text class="erd-field" x="379" y="268">status · severity</text>
+              <text class="erd-field" x="379" y="284">likelihood · impact · loss</text>
+
+              <!-- actions -->
+              <rect class="erd-box erd-box--core" x="365" y="344" width="190" height="136" rx="6" />
+              <text class="erd-head" x="379" y="364">actions</text>
+              <text class="erd-field" x="379" y="382">id · reference · title</text>
+              <text class="erd-field" x="379" y="398">incident_id</text>
+              <text class="erd-field" x="379" y="414">control_id</text>
+              <text class="erd-field" x="379" y="430">owner_user_id</text>
+              <text class="erd-field" x="379" y="446">action_type · priority</text>
+              <text class="erd-field" x="379" y="462">status · due_date</text>
+
+              <!-- users -->
+              <rect class="erd-box" x="710" y="24" width="190" height="96" rx="6" />
+              <text class="erd-head" x="724" y="44">users</text>
+              <text class="erd-field" x="724" y="62">id · full_name · email</text>
+              <text class="erd-field" x="724" y="78">department_id</text>
+              <text class="erd-field" x="724" y="94">manager_id</text>
+              <text class="erd-field" x="724" y="110">role · job_title</text>
+
+              <!-- systems -->
+              <rect class="erd-box" x="710" y="156" width="190" height="96" rx="6" />
+              <text class="erd-head" x="724" y="176">systems</text>
+              <text class="erd-field" x="724" y="194">id · code · name</text>
+              <text class="erd-field" x="724" y="210">owner_user_id</text>
+              <text class="erd-field" x="724" y="226">vendor · hosting</text>
+              <text class="erd-field" x="724" y="242">criticality</text>
+
+              <!-- controls -->
+              <rect class="erd-box" x="710" y="288" width="190" height="110" rx="6" />
+              <text class="erd-head" x="724" y="308">controls</text>
+              <text class="erd-field" x="724" y="326">id · code · name</text>
+              <text class="erd-field" x="724" y="342">owner_user_id</text>
+              <text class="erd-field" x="724" y="358">department_id · system_id</text>
+              <text class="erd-field" x="724" y="374">control_type · automation</text>
+              <text class="erd-field" x="724" y="390">effectiveness</text>
+
+              <!-- relationships -->
+              <path class="erd-link" d="M210,72 H290 V160 H365" />
+              <text class="erd-card" x="296" y="152">1 : N</text>
+
+              <path class="erd-link" d="M210,204 H365" />
+              <text class="erd-card" x="270" y="198">1 : N</text>
+
+              <path class="erd-link" d="M460,82 V118" />
+              <text class="erd-card" x="466" y="106">1 : N</text>
+
+              <path class="erd-link" d="M710,72 H630 V160 H555" />
+              <text class="erd-card" x="590" y="152">1 : N</text>
+
+              <path class="erd-link" d="M710,204 H555" />
+              <text class="erd-card" x="596" y="198">1 : N</text>
+
+              <path class="erd-link" d="M710,320 H640 V250 H555" />
+              <text class="erd-card" x="574" y="243">M : N</text>
+              <text class="erd-card" x="574" y="232">incident_controls</text>
+
+              <path class="erd-link" d="M460,296 V344" />
+              <text class="erd-card" x="466" y="326">1 : N</text>
+
+              <path class="erd-link" d="M710,370 H620 V412 H555" />
+              <text class="erd-card" x="600" y="406">1 : N</text>
+
+              <path class="erd-link" d="M365,270 H300 V433 H210" />
+              <text class="erd-card" x="228" y="427">1 : N</text>
+            </svg>
+
+            <p class="small muted" style="margin:1rem 0 0">
+              Two further join tables are not drawn to keep the diagram readable:
+              <code>incident_systems</code> (an incident usually touches more systems than its primary one)
+              and <code>control_processes</code> (a control covers many processes, a process is covered by many controls).
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid--2">
+          <div class="card">
+            <div class="card__head"><h2 class="card__title">The core tables</h2></div>
+            <div class="card__body prose">
+              <h3>incidents</h3>
+              <p>An operational risk event that has already happened. Carries the narrative
+                (<code>description</code>, <code>root_cause</code>), the scoring
+                (<code>severity</code>, <code>likelihood</code>, <code>impact</code>), the money
+                (<code>gross_loss</code>, <code>recovery_amount</code>, <code>net_loss</code>) and the
+                foreign keys that say where it happened: department, process, primary system and risk category.</p>
+
+              <h3>actions</h3>
+              <p>What is being done about it. Each action points back at its incident and, where the
+                fix is a control change, at the control it strengthens.
+                <code>action_type</code> distinguishes one-off remediation from
+                <em>enhance an existing control</em> and <em>stand up a new one</em>.</p>
+
+              <h3>controls</h3>
+              <p>The mitigations already in place, with an operating <code>effectiveness</code> rating
+                and a <code>design_rating</code>. A control is linked to the incidents it was in scope
+                for through <code>incident_controls</code>, which records how it performed
+                — that is where "which controls keep letting us down" comes from.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__head"><h2 class="card__title">The reference tables</h2></div>
+            <div class="card__body prose">
+              <h3>departments &amp; users</h3>
+              <p>Departments nest through <code>parent_department_id</code> and name a head.
+                Users belong to a department, report to a manager, and hold a
+                <code>role</code> that a future write API would use for authorisation.</p>
+
+              <h3>processes &amp; systems</h3>
+              <p>The two lenses on how work gets done. An incident names the process that broke and the
+                system it broke on; a control names the system it runs in and the processes it covers.</p>
+
+              <h3>risk_categories</h3>
+              <p>A two-level Basel-style event taxonomy — seven level-one categories with level-two
+                children such as <em>Payment &amp; card fraud</em> and <em>Change &amp; release failure</em>.</p>
+
+              <h3>incident_updates</h3>
+              <p>The timeline: who said what, when, and any status transition. It is what makes an
+                incident readable months later, and it gives an assistant something to summarise.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">Views</h2>
+            <span class="card__sub">The shared read surface</span>
+          </div>
+          <div class="card__body prose">
+            <p>Four SQL views exist so the web UI and the MCP server answer the same question the same
+              way, rather than each re-deriving "open", "overdue" or "significant" in its own code:</p>
+            <ul>
+              <li><code>v_incident_summary</code> — incidents with lookups resolved, a derived
+                <code>risk_score</code> and action counts.</li>
+              <li><code>v_action_summary</code> — actions with their incident and control context and an
+                <code>is_overdue</code> flag computed against <code>date('now')</code>.</li>
+              <li><code>v_control_health</code> — each control with its failure count, open actions and
+                process coverage.</li>
+              <li><code>v_department_exposure</code> — per-department incident counts and net loss, the
+                shape a management pack needs.</li>
+            </ul>
+            <p class="callout">The front end reads a JSON fixture with exactly these field names, so
+              swapping it for the live database is a change to one module
+              (<code>assets/js/api.js</code>) and nothing else.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h2 class="card__title">Loading it into D1</h2></div>
+          <div class="card__body prose">
+<pre><code># create the database once
+npx wrangler d1 create risk_demo
+
+# apply the schema, then the demo rows
+npx wrangler d1 execute risk_demo --file=db/schema.sql --remote
+npx wrangler d1 execute risk_demo --file=db/seed.sql   --remote
+
+# sanity check
+npx wrangler d1 execute risk_demo --remote \
+  --command="SELECT status, COUNT(*) FROM incidents GROUP BY status"</code></pre>
+            <p><code>db/seed.sql</code> is generated from <code>assets/data/demo.json</code> by
+              <code>node tools/generate-seed.mjs</code>, so the mock-up and the database cannot drift
+              apart. Edit the JSON, regenerate, reload.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
