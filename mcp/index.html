@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="The planned MCP server over the risk database — tools, transport, authorisation and worked demo prompts." />
+    <title>MCP server · Meridian Risk</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/css/styles.css" />
+    <script>
+      try { const t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+    </script>
+    <script type="module" src="/assets/js/pages/static-page.js"></script>
+  </head>
+  <body
+    class="app"
+    data-page="mcp"
+    data-page-title="MCP server"
+    data-eyebrow="Design"
+    data-sub="The point of the demo: an assistant that can read the risk register through a small, closed set of tools — and, later, write to it under review."
+  >
+    <a class="skip-link" href="#main">Skip to content</a>
+    <aside id="sidebar"></aside>
+    <div class="content">
+      <header id="topbar"></header>
+      <main class="main" id="main">
+        <div class="banner">
+          <span class="banner__glyph" aria-hidden="true">🚧</span>
+          <span>
+            The MCP server is designed but not yet built — this page is the specification the
+            implementation will follow. The web interface you are looking at runs entirely on a
+            bundled JSON fixture today. See <a href="/about/">About</a> for where the build has got to.
+          </span>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h2 class="card__title">Shape of the thing</h2></div>
+          <div class="card__body prose">
+            <p>A Cloudflare Worker exposes a remote MCP endpoint at <code>/mcp</code> over streamable
+              HTTP. It holds a D1 binding to the risk database and nothing else. Claude (desktop, or the
+              API with an MCP connector) attaches to it and can then answer questions about the register
+              directly rather than being handed an export.</p>
+<pre><code>Claude  ──MCP over HTTP──▶  Worker (/mcp)  ──binding──▶  D1: risk_demo
+                                  │
+Browser ──static assets───▶  same Worker  ──fetch /api/*──▶ same D1</code></pre>
+            <p>The web UI and the MCP server sit on the same database and, deliberately, the same query
+              surface — the functions in <code>assets/js/api.js</code> mirror the tool list below
+              one-for-one. If a person can see it in the UI, the assistant can ask for it, and both get
+              the same numbers.</p>
+
+            <div class="callout">
+              One constraint worth stating early: the D1 binding and a Worker entry point have to be
+              declared in <code>wrangler.toml</code>, which this repository's deployment setup owns.
+              The MCP server therefore ships either as a change to that file made by the repository
+              owner, or as a second Worker with its own configuration. It is not something the site
+              build can add on its own.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">Read tools</h2>
+            <span class="card__sub">Phase one — everything the demo needs</span>
+          </div>
+          <div class="card__body card__body--flush">
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr><th>Tool</th><th>Arguments</th><th>Returns</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="mono nowrap">list_incidents</td>
+                    <td class="small">status, severity, department, system, process, category, owner, occurred_from, occurred_to, search, limit</td>
+                    <td class="small">Matching incidents from <code>v_incident_summary</code>, newest first.</td>
+                  </tr>
+                  <tr>
+                    <td class="mono nowrap">get_incident</td>
+                    <td class="small">reference <span class="muted">(e.g. INC-2026-018)</span></td>
+                    <td class="small">One incident with its actions, the controls that were in scope and how each performed, the systems touched, and the update timeline.</td>
+                  </tr>
+                  <tr>
+                    <td class="mono nowrap">list_actions</td>
+                    <td class="small">status, priority, action_type, overdue, owner, department, incident, control</td>
+                    <td class="small">Actions from <code>v_action_summary</code>, including the derived overdue flag.</td>
+                  </tr>
+                  <tr>
+                    <td class="mono nowrap">list_controls</td>
+                    <td class="small">effectiveness, control_type, automation, department, system, process</td>
+                    <td class="small">Controls from <code>v_control_health</code> with failure counts and coverage.</td>
+                  </tr>
+                  <tr>
+                    <td class="mono nowrap">get_control</td>
+                    <td class="small">code <span class="muted">(e.g. CTL-02)</span></td>
+                    <td class="small">One control with its processes, linked incidents and open actions.</td>
+                  </tr>
+                  <tr>
+                    <td class="mono nowrap">risk_summary</td>
+                    <td class="small">period_months <span class="muted">(default 12)</span></td>
+                    <td class="small">Counts, loss totals, the monthly series, the likelihood × impact grid and per-department exposure — one call for "how are we doing?".</td>
+                  </tr>
+                  <tr>
+                    <td class="mono nowrap">list_reference</td>
+                    <td class="small">entity: departments | systems | processes | people | risk_categories</td>
+                    <td class="small">The reference registers, so the assistant can resolve a name to an id before filtering.</td>
+                  </tr>
+                  <tr>
+                    <td class="mono nowrap">search</td>
+                    <td class="small">query, limit</td>
+                    <td class="small">Cross-entity keyword search over incidents, actions and controls, each hit tagged with its type.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">Write tools</h2>
+            <span class="card__sub">Phase two — gated</span>
+          </div>
+          <div class="card__body prose">
+            <p>Writes are where a risk system gets interesting and where it gets dangerous, so they come
+              second and they come with rules:</p>
+            <ul>
+              <li><code>create_incident</code> — raise an event. Returns the allocated reference.</li>
+              <li><code>add_incident_update</code> — append to the timeline, optionally moving status.</li>
+              <li><code>create_action</code> — raise a mitigation against an incident and, optionally, a control.</li>
+              <li><code>update_action_progress</code> — move status and percentage complete.</li>
+              <li><code>update_control_effectiveness</code> — record a test result.</li>
+            </ul>
+            <p>Every write tool is annotated as non-read-only so the client prompts for confirmation;
+              every write is attributed to the calling identity and lands in
+              <code>incident_updates</code> as an audit trail. Nothing is ever hard-deleted — statuses
+              move to <code>cancelled</code> or <code>closed</code> instead. A demo token scoped to a
+              single seeded database keeps the blast radius at zero.</p>
+          </div>
+        </div>
+
+        <div class="grid grid--2">
+          <div class="card">
+            <div class="card__head"><h2 class="card__title">Questions the demo should answer</h2></div>
+            <div class="card__body prose">
+              <ul>
+                <li><em>"What's open and material right now?"</em> — <code>risk_summary</code> then
+                  <code>list_incidents</code> filtered to open, high and critical.</li>
+                <li><em>"Why did the duplicate payment happen, and is it fixed?"</em> —
+                  <code>get_incident INC-2026-018</code> returns the root cause, the control that
+                  failed (CTL-02, keyed on file hash alone) and the two actions raised against it.</li>
+                <li><em>"Which controls keep failing?"</em> — <code>list_controls</code> sorted by
+                  failure count surfaces CTL-07, CTL-10 and CTL-13.</li>
+                <li><em>"What is Payments carrying?"</em> — department filter across incidents and
+                  actions in two calls.</li>
+                <li><em>"Draft the monthly risk report."</em> — one <code>risk_summary</code> plus
+                  <code>list_actions(overdue)</code> is enough material for a first draft.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__head"><h2 class="card__title">Implementation notes</h2></div>
+            <div class="card__body prose">
+              <ul>
+                <li>SQL lives in parameterised statements only — tool arguments are never concatenated
+                  into a query. The closed enumerations in the schema make argument validation cheap.</li>
+                <li>Every list tool takes <code>limit</code> (default 50, hard cap 200) and returns a
+                  <code>total</code> alongside the rows, so a broad question degrades into a summary
+                  rather than a context-flooding dump.</li>
+                <li>Results are returned as structured content matching the tool's output schema, with a
+                  short text rendering for clients that only read text.</li>
+                <li>Read tools are annotated read-only and idempotent; that is what lets a client run
+                  them without prompting.</li>
+                <li>The same Worker serves <code>/api/*</code> for the browser, so there is one place
+                  where a query is written and one place where it can be wrong.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
