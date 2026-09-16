@@ -9,10 +9,15 @@ The project has three parts:
 |---|---|---|
 | **Database** | A Cloudflare D1 (SQLite) schema for operational risk — incidents, actions, controls, departments, people, processes and systems, with real relationships between them | **Built and provisioned** — `db/schema.sql`, `db/seed.sql` are loaded into a live `risk_demo` D1 database |
 | **Web interface** | A static dashboard and three registers over that data — no framework, no build step | **Built** — this is what deploys today, still reading `assets/data/demo.json` by default |
-| **MCP server** | A Cloudflare Worker exposing the database to Claude as a small set of MCP tools | **Built, deploys automatically on merge to `main`** — a second Worker in [`worker/`](worker/) implements the full read surface from [`docs/mcp-server.md`](docs/mcp-server.md); see [`worker/README.md`](worker/README.md) |
+| **MCP server** | A Cloudflare Worker exposing the database to Claude as a small set of MCP tools | **Built and live** — a second Worker in [`worker/`](worker/) implements the full read surface from [`docs/mcp-server.md`](docs/mcp-server.md) at [risk-mcp.gcameron.com](https://risk-mcp.gcameron.com); deploys automatically on merge to `main`, see [`worker/README.md`](worker/README.md) |
 
 Everything in the dataset is fictional. Meridian Financial Group, its staff and
 every incident in the register were written for this demo.
+
+## Live
+
+- Site: <https://demo-risk-system.gcameron.com>
+- MCP server: `https://risk-mcp.gcameron.com/mcp` · health check: <https://risk-mcp.gcameron.com/health>
 
 ## Quick start
 
@@ -80,7 +85,7 @@ entirely new control. Actions carry an owner, a due date and progress.
 **Incident updates** give each incident a timeline.
 
 Full detail: [`docs/data-model.md`](docs/data-model.md), or the
-[Data model page](https://demo-risk-system.workers.dev/data-model/) in the site
+[Data model page](https://demo-risk-system.gcameron.com/data-model/) in the site
 itself.
 
 ## Loading the database
@@ -118,6 +123,12 @@ declared in `wrangler.toml`. Rather than modify the root config above, the MCP
 server ships as a second Worker (`worker/`) with its own `wrangler.toml` and
 its own deploy step — see [`worker/README.md`](worker/README.md). See also
 [`docs/implementation-plan.md`](docs/implementation-plan.md#phase-3--the-api-over-d1).
+
+Both Workers now sit behind custom domains: the static site at
+`demo-risk-system.gcameron.com`, `risk-mcp` at `risk-mcp.gcameron.com`.
+Neither Worker's `wrangler.toml` declares the domain — it's attached in the
+Cloudflare dashboard, so the `*.workers.dev` URL each still prints on deploy
+keeps working alongside it.
 
 ## Conventions
 

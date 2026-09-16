@@ -105,7 +105,8 @@ coincidence.
 
 ## Setting up
 
-1. `npx serve .` and open `http://localhost:8000`, or use the deployed site.
+1. `npx serve .` and open `http://localhost:8000`, or use the deployed site at
+   <https://demo-risk-system.gcameron.com>.
 2. Pick a theme before you start — the toggle is top right, and switching
    mid-demo is a distraction.
 3. Open the tabs you'll need in advance: dashboard, INC-2026-018, CTL-02,
