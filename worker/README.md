@@ -11,6 +11,16 @@ A second Cloudflare Worker, deliberately separate from the repository root's
 No dependencies, no build step — plain ES modules, same convention as the
 rest of this repository.
 
+## Live
+
+Deployed at <https://risk-mcp.gcameron.com> (custom domain, attached in the
+Cloudflare dashboard — not declared in `wrangler.toml`, so the
+`*.workers.dev` URL wrangler prints on deploy keeps working too):
+
+- Health check: <https://risk-mcp.gcameron.com/health>
+- API: `https://risk-mcp.gcameron.com/api/*`
+- MCP endpoint: `https://risk-mcp.gcameron.com/mcp`
+
 ## Deploy
 
 The `risk_demo` D1 database has already been provisioned and seeded (phase 2
@@ -32,10 +42,6 @@ cd worker
 npx wrangler deploy
 ```
 
-Either way, note the `*.workers.dev` URL wrangler prints (or check the
-Cloudflare dashboard after the Action runs) — you'll need it for both steps
-below.
-
 ## Wire up the browser UI (optional)
 
 By default the site still reads `assets/data/demo.json`, unchanged. To point
@@ -43,7 +49,7 @@ it at the live D1-backed API instead, set `window.MERIDIAN_API_BASE` to this
 Worker's URL before `assets/js/api.js` loads — e.g. in each page's `<head>`:
 
 ```html
-<script>window.MERIDIAN_API_BASE = 'https://risk-mcp.<your-subdomain>.workers.dev';</script>
+<script>window.MERIDIAN_API_BASE = 'https://risk-mcp.gcameron.com';</script>
 ```
 
 `api.js` then fetches `${MERIDIAN_API_BASE}/api/export` (same shape as
@@ -54,7 +60,7 @@ exactly as deployed.
 
 ## Connect Claude to the MCP server
 
-Add a remote MCP connector pointed at `https://risk-mcp.<your-subdomain>.workers.dev/mcp`.
+Add a remote MCP connector pointed at `https://risk-mcp.gcameron.com/mcp`.
 No authentication is configured yet (phase 6) — this is a read-only demo
 server over a seeded, disposable database.
 

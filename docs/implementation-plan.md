@@ -8,15 +8,15 @@ This plan is sequenced so that **every phase leaves something demonstrable**. If
 the build stops after phase 1, there is still a clickable mock-up; after phase 4
 there is a working MCP demo even if writes never land.
 
-Status as of 2026-09-16: phases 0 and 1 are complete and deployed. Phase 2 is
-complete — `risk_demo` is live in Cloudflare D1, loaded via the Cloudflare
-API directly (no `wrangler` CLI was available in that build environment).
-Phases 3 and 4 are built as code — a second Worker, `worker/`, per the phase
-3 fallback option. Deployment is now automatic:
-`.github/workflows/deploy-risk-mcp.yml` runs `wrangler deploy` from `worker/`
-on every push to `main` that touches it, reusing the same Cloudflare
-credentials as the static site's `deploy.yml`. Merging this branch is what
-ships it — see [`worker/README.md`](../worker/README.md).
+Status as of 2026-09-16: phases 0 through 4 are complete and deployed.
+`risk_demo` is live in Cloudflare D1. `worker/` — a second Worker, per the
+phase 3 fallback option — deploys automatically on every push to `main` via
+`.github/workflows/deploy-risk-mcp.yml`, reusing the same Cloudflare
+credentials as the static site's `deploy.yml`, and is live at
+[risk-mcp.gcameron.com](https://risk-mcp.gcameron.com) (a custom domain
+attached in the Cloudflare dashboard, alongside the static site's own
+[demo-risk-system.gcameron.com](https://demo-risk-system.gcameron.com)). See
+[`worker/README.md`](../worker/README.md).
 
 ---
 
@@ -111,7 +111,7 @@ what the dashboard shows from the fixture. Met.
 
 ---
 
-## Phase 3 — The API over D1 ✅ built, deploys automatically on merge
+## Phase 3 — The API over D1 ✅ done, live
 
 The browser stops reading a file and starts reading the database.
 
@@ -150,14 +150,15 @@ static site would call it cross-origin (CORS is handled in
   default with zero risk to what's live today.
 
 **Acceptance:** the site renders identically against D1 and against the
-fixture — verified once `worker/` is deployed and `MERIDIAN_API_BASE` is set;
-the query layer itself was validated by running the equivalent SQL directly
-against the live `risk_demo` database (see phase 4 acceptance below, same
-data).
+fixture. `worker/` is deployed and live at `risk-mcp.gcameron.com`; the query
+layer itself was validated by running the equivalent SQL directly against the
+live `risk_demo` database during the build (see phase 4 acceptance below,
+same data). The identical-rendering check itself still wants a pass with
+`MERIDIAN_API_BASE` set to the live URL — nobody's flipped that flag yet.
 
 ---
 
-## Phase 4 — The MCP server, read tools ✅ built, deploys automatically on merge
+## Phase 4 — The MCP server, read tools ✅ done, live
 
 The actual point of the exercise.
 
@@ -169,7 +170,7 @@ The actual point of the exercise.
 | `risk_summary` | One call answers "how are we doing?" | ✅ |
 | `list_reference`, `search` | Name-to-id resolution, and a keyword entry point | ✅ |
 | Tool annotations | `readOnlyHint: true`, `idempotentHint: true` on all eight | ✅ |
-| Connect from Claude and rehearse | Against `docs/demo-script.md` | ⬜ once merged and live |
+| Connect from Claude and rehearse | Against `docs/demo-script.md`, connector URL `https://risk-mcp.gcameron.com/mcp` | ⬜ next step |
 
 Full argument and return specification: [`docs/mcp-server.md`](mcp-server.md).
 
