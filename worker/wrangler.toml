@@ -1,0 +1,16 @@
+# risk-mcp — a second Worker, deliberately separate from the repository's
+# root wrangler.toml (which the static site's deploy pipeline owns and which
+# this project must not modify). See docs/implementation-plan.md phase 3 and
+# docs/mcp-server.md.
+#
+# Deploy from this directory:
+#   cd worker && npx wrangler deploy
+
+name = "risk-mcp"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "risk_demo"
+database_id = "9a378c48-a442-4118-951c-73896717de57"

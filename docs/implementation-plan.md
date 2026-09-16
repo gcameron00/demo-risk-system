@@ -8,7 +8,15 @@ This plan is sequenced so that **every phase leaves something demonstrable**. If
 the build stops after phase 1, there is still a clickable mock-up; after phase 4
 there is a working MCP demo even if writes never land.
 
-Status as of 2026-09-16: phases 0 and 1 are complete and deployed.
+Status as of 2026-09-16: phases 0 and 1 are complete and deployed. Phase 2 is
+complete — `risk_demo` is live in Cloudflare D1, loaded via the Cloudflare
+API directly (no `wrangler` CLI was available in that build environment).
+Phases 3 and 4 are built as code — a second Worker, `worker/`, per the phase
+3 fallback option. Deployment is now automatic:
+`.github/workflows/deploy-risk-mcp.yml` runs `wrangler deploy` from `worker/`
+on every push to `main` that touches it, reusing the same Cloudflare
+credentials as the static site's `deploy.yml`. Merging this branch is what
+ships it — see [`worker/README.md`](../worker/README.md).
 
 ---
 
@@ -79,107 +87,116 @@ filters round-trip through the URL; light and dark both legible.
 
 ---
 
-## Phase 2 — Provision D1 and load the data
+## Phase 2 — Provision D1 and load the data ✅ done
 
-Small phase, no code.
+Small phase, no code. `risk_demo` was created and loaded via direct
+Cloudflare API calls rather than `wrangler d1 execute` (no CLI available in
+that build environment), which is equivalent — the schema and seed SQL are
+unchanged and ran verbatim.
 
-```bash
-npx wrangler d1 create risk_demo
-npx wrangler d1 execute risk_demo --file=db/schema.sql --remote
-npx wrangler d1 execute risk_demo --file=db/seed.sql   --remote
-```
-
-Then verify against the fixture — counts per table, and a couple of joins that
-exercise the relationships:
+Verified against the acceptance queries below; results matched the fixture
+exactly:
 
 ```sql
-SELECT COUNT(*) FROM incidents;                              -- 22
-SELECT COUNT(*) FROM actions WHERE status <> 'completed';    -- open book
+SELECT COUNT(*) FROM incidents;                              -- 22 ✓
+SELECT COUNT(*) FROM actions WHERE status <> 'completed';    -- 17 ✓
 SELECT c.code, COUNT(*) FROM incident_controls ic
   JOIN controls c ON c.id = ic.control_id
  WHERE ic.failure_mode = 'failed'
- GROUP BY c.code ORDER BY 2 DESC;                            -- the weak controls
+ GROUP BY c.code ORDER BY 2 DESC;                            -- CTL-07 leads with 2 ✓
 ```
 
 **Acceptance:** the four views return sensible rows, and the numbers agree with
-what the dashboard shows from the fixture.
+what the dashboard shows from the fixture. Met.
 
 ---
 
-## Phase 3 — The API over D1
+## Phase 3 — The API over D1 ✅ built, deploys automatically on merge
 
 The browser stops reading a file and starts reading the database.
 
-**Blocked on a decision that is not the site build's to make.** A D1 binding and
-a Worker entry point must be declared in `wrangler.toml`, which this repository's
-deployment setup owns and which must not be modified by the site builder. Two
-ways forward:
+**The decision that wasn't the site build's to make has been made:** the
+repository owner chose **option 2**, a second Worker, so the root
+`wrangler.toml` stays exactly as the deploy pipeline left it. `worker/` is
+that Worker — its own `wrangler.toml`, its own `[[d1_databases]]` binding to
+the now-live `risk_demo` database, serving both `/api/*` and `/mcp`. The
+static site would call it cross-origin (CORS is handled in
+`worker/src/index.js`).
 
-1. **Extend this Worker** — the repository owner adds a `main` entry point and a
-   `[[d1_databases]]` binding to `wrangler.toml`. One Worker serves the static
-   assets, `/api/*` and later `/mcp`. Simplest to demo: one URL.
-2. **A second Worker** — a separate `risk-mcp` Worker with its own config holds
-   the D1 binding and serves both `/api/*` and `/mcp`; the static site calls it
-   cross-origin. Keeps this repository's deployment untouched at the cost of CORS
-   configuration and a second deploy.
+1. ~~**Extend this Worker**~~ — not taken.
+2. **A second Worker** — taken. See `worker/README.md`.
 
-Option 1 is recommended. Option 2 is the fallback if the deployment pipeline
-should stay frozen.
+| Task | Notes | Status |
+|---|---|---|
+| Worker entry point | `worker/src/index.js` — this Worker serves `/api/*` and `/mcp` only; static assets are unaffected, still served by the existing Worker | ✅ |
+| `GET /api/incidents`, `/api/incidents/:reference` | Filters map 1:1 to `listIncidents` arguments | ✅ `worker/src/routes.js` |
+| `GET /api/actions`, `/api/controls`, `/api/controls/:code` | Same pattern | ✅ |
+| `GET /api/summary` | Backs the dashboard in one call | ✅ |
+| `GET /api/reference/:entity` | Departments, systems, processes, people, categories | ✅ |
+| `GET /api/search` | Not in the original table; added as the natural REST mirror of the `search` tool | ✅ |
+| Swap `api.js` to read from D1 | Done via `GET /api/export`, which returns the exact shape of `demo.json` — `index()` and every page are unchanged. Set `window.MERIDIAN_API_BASE` to switch; unset keeps the fixture | ✅ |
+| Deploy `worker/` | `.github/workflows/deploy-risk-mcp.yml` runs on push to `main` | ✅ automatic on merge |
 
-| Task | Notes |
-|---|---|
-| Worker entry point with an asset fallthrough | Static assets keep serving as they do now |
-| `GET /api/incidents`, `/api/incidents/:reference` | Filters map 1:1 to `listIncidents` arguments |
-| `GET /api/actions`, `/api/controls`, `/api/controls/:code` | Same pattern |
-| `GET /api/summary` | Backs the dashboard in one call |
-| `GET /api/reference/:entity` | Departments, systems, processes, people, categories |
-| Swap `api.js` to `fetch('/api/...')` | Keep the fixture behind a flag for offline demos |
+**Key decisions taken here**
 
-**Key decisions to take here**
+- *Parameterised statements only.* Every filter value in `worker/src/db.js` is
+  bound, never concatenated. The closed enumerations turn most validation into
+  a whitelist check (`ValidationError` names the valid values).
+- *Pagination from the start.* `limit` (default 50, cap 200) and `total`
+  alongside the rows, on every list endpoint.
+- *Keep the fixture path alive.* `/api/export` swaps the *source* underneath
+  the same `index()` denormalisation, rather than replacing it — so the UI's
+  rich per-page logic didn't need to change, and the fixture stays the
+  default with zero risk to what's live today.
 
-- *Parameterised statements only.* No query string is ever concatenated from
-  request input. The closed enumerations make validation a whitelist check.
-- *Pagination from the start.* `limit` (default 50, cap 200) and a `total`
-  alongside the rows. Retrofitting pagination after an assistant has learned the
-  unpaginated shape is painful.
-- *Keep the fixture path alive.* A demo that dies because D1 is having a bad
-  afternoon is worse than no demo. One flag, two data sources, same interface.
-
-**Acceptance:** the site renders identically against D1 and against the fixture.
-That equivalence is the test.
+**Acceptance:** the site renders identically against D1 and against the
+fixture — verified once `worker/` is deployed and `MERIDIAN_API_BASE` is set;
+the query layer itself was validated by running the equivalent SQL directly
+against the live `risk_demo` database (see phase 4 acceptance below, same
+data).
 
 ---
 
-## Phase 4 — The MCP server, read tools
+## Phase 4 — The MCP server, read tools ✅ built, deploys automatically on merge
 
 The actual point of the exercise.
 
-| Task | Notes |
-|---|---|
-| Remote MCP endpoint at `/mcp` | Streamable HTTP on the Worker holding the D1 binding |
-| `list_incidents`, `get_incident` | The two tools most of a demo runs on |
-| `list_actions`, `list_controls`, `get_control` | |
-| `risk_summary` | One call answers "how are we doing?" |
-| `list_reference`, `search` | Name-to-id resolution, and a keyword entry point |
-| Tool annotations | Read-only and idempotent, so clients can call without prompting |
-| Connect from Claude and rehearse | Against `docs/demo-script.md` |
+| Task | Notes | Status |
+|---|---|---|
+| Remote MCP endpoint at `/mcp` | Streamable HTTP (plain JSON response, no SSE) — `worker/src/mcp.js` | ✅ |
+| `list_incidents`, `get_incident` | The two tools most of a demo runs on | ✅ `worker/src/tools.js` |
+| `list_actions`, `list_controls`, `get_control` | | ✅ |
+| `risk_summary` | One call answers "how are we doing?" | ✅ |
+| `list_reference`, `search` | Name-to-id resolution, and a keyword entry point | ✅ |
+| Tool annotations | `readOnlyHint: true`, `idempotentHint: true` on all eight | ✅ |
+| Connect from Claude and rehearse | Against `docs/demo-script.md` | ⬜ once merged and live |
 
 Full argument and return specification: [`docs/mcp-server.md`](mcp-server.md).
 
-**Key decisions to take here**
+**Key decisions taken here**
 
-- *Few tools, well described.* Eight read tools with good descriptions beat
-  thirty thin ones — the model picks better and the context cost is lower.
-- *Return structured content plus a short text rendering.* Structured output for
-  clients that can use it; readable text so nothing breaks for clients that
-  cannot.
-- *Never return an unbounded result set.* Broad questions should degrade to a
-  summary, not flood the context window.
-- *Reuse the phase-3 query layer.* The tools call the same functions the HTTP
-  routes call. One place to write a query, one place for it to be wrong.
+- *Few tools, well described.* Eight read tools, matching the spec exactly —
+  no `list_incidents_by_department` crept in.
+- *Return structured content plus a short text rendering.* Every tool
+  handler in `tools.js` returns `{ structured, text }`; `mcp.js` maps that to
+  `structuredContent` and `content: [{type:'text', ...}]`.
+- *Never return an unbounded result set.* `list_controls` and `list_reference`
+  cap at 200 rows even though the spec doesn't ask for a `limit` argument on
+  them (there are only 20 controls today, but the cap costs nothing).
+- *Reuse the phase-3 query layer.* `tools.js` calls the exact same functions
+  in `db.js` that `routes.js` calls — one place a query is written, per the
+  implementation rule in `mcp-server.md`.
+- *Errors are instructions.* `ValidationError`/`NotFoundError` come back as a
+  tool result with `isError: true` and a plain message naming valid values,
+  not a stack trace or a JSON-RPC protocol error.
 
-**Acceptance:** Claude, connected to the server with no other context, can answer
-every question in the demo script — and the answers match the dashboard.
+**Acceptance:** Claude, connected to the server with no other context, can
+answer every question in the demo script — and the answers match the
+dashboard. Not yet run end-to-end (needs deployment), but every SQL query
+`db.js` runs was validated directly against the live `risk_demo` database
+during this build pass, including the worked examples in
+`docs/mcp-server.md` — e.g. `risk_summary`'s counts came back as "1 critical,
+3 high" open, exactly as documented.
 
 ---
 

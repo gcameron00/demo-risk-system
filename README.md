@@ -7,9 +7,9 @@ The project has three parts:
 
 | Part | What it is | Status |
 |---|---|---|
-| **Database** | A Cloudflare D1 (SQLite) schema for operational risk — incidents, actions, controls, departments, people, processes and systems, with real relationships between them | **Built** — `db/schema.sql`, `db/seed.sql` |
-| **Web interface** | A static dashboard and three registers over that data — no framework, no build step | **Built** — this is what deploys today |
-| **MCP server** | A Cloudflare Worker exposing the database to Claude as a small set of MCP tools | **Specified, not built** — see [`docs/mcp-server.md`](docs/mcp-server.md) |
+| **Database** | A Cloudflare D1 (SQLite) schema for operational risk — incidents, actions, controls, departments, people, processes and systems, with real relationships between them | **Built and provisioned** — `db/schema.sql`, `db/seed.sql` are loaded into a live `risk_demo` D1 database |
+| **Web interface** | A static dashboard and three registers over that data — no framework, no build step | **Built** — this is what deploys today, still reading `assets/data/demo.json` by default |
+| **MCP server** | A Cloudflare Worker exposing the database to Claude as a small set of MCP tools | **Built, deploys automatically on merge to `main`** — a second Worker in [`worker/`](worker/) implements the full read surface from [`docs/mcp-server.md`](docs/mcp-server.md); see [`worker/README.md`](worker/README.md) |
 
 Everything in the dataset is fictional. Meridian Financial Group, its staff and
 every incident in the register were written for this demo.
@@ -34,6 +34,7 @@ npx wrangler dev
 ## What is in the box
 
 ```
+worker/                     risk-mcp: a second Worker holding the D1 binding, /api/* and /mcp
 index.html                  Dashboard — KPIs, 12-month trend, risk heat map, exposure
 incidents/index.html        Incident register — filter by status, severity, department, system, category
 incidents/detail.html       One incident: root cause, failed controls, actions, timeline
@@ -113,8 +114,9 @@ Pushes to `main` deploy to Cloudflare Workers via
 `.github/workflows/`** — they own deployment.
 
 This matters for the MCP server: a D1 binding and a Worker entry point have to be
-declared in `wrangler.toml`. That change belongs to the repository owner, or the
-MCP server ships as a second Worker with its own config. See
+declared in `wrangler.toml`. Rather than modify the root config above, the MCP
+server ships as a second Worker (`worker/`) with its own `wrangler.toml` and
+its own deploy step — see [`worker/README.md`](worker/README.md). See also
 [`docs/implementation-plan.md`](docs/implementation-plan.md#phase-3--the-api-over-d1).
 
 ## Conventions

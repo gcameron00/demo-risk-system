@@ -12,11 +12,19 @@
 
 const SOURCE = '/assets/data/demo.json';
 
+/**
+ * Set `window.MERIDIAN_API_BASE` (e.g. to the deployed risk-mcp Worker's
+ * origin) to read from D1 instead of the bundled fixture. Unset, behaviour
+ * is exactly what ships today. See worker/README.md.
+ */
+const API_BASE = typeof window !== 'undefined' ? window.MERIDIAN_API_BASE : null;
+
 let cache = null;
 
 async function load() {
   if (cache) return cache;
-  const res = await fetch(SOURCE, { headers: { accept: 'application/json' } });
+  const source = API_BASE ? `${API_BASE}/api/export` : SOURCE;
+  const res = await fetch(source, { headers: { accept: 'application/json' } });
   if (!res.ok) throw new Error(`Could not load demo data (${res.status})`);
   cache = index(await res.json());
   return cache;
