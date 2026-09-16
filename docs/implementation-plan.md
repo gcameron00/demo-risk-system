@@ -12,11 +12,11 @@ Status as of 2026-09-16: phases 0 and 1 are complete and deployed. Phase 2 is
 complete — `risk_demo` is live in Cloudflare D1, loaded via the Cloudflare
 API directly (no `wrangler` CLI was available in that build environment).
 Phases 3 and 4 are built as code — a second Worker, `worker/`, per the phase
-3 fallback option — but not yet deployed: shipping Worker *code* needs
-`npx wrangler deploy`, and no tool in that build environment could do that
-(only D1/KV/R2 management and read-only Worker inspection were available).
-Deploying `worker/` is the one remaining manual step — see
-[`worker/README.md`](../worker/README.md).
+3 fallback option. Deployment is now automatic:
+`.github/workflows/deploy-risk-mcp.yml` runs `wrangler deploy` from `worker/`
+on every push to `main` that touches it, reusing the same Cloudflare
+credentials as the static site's `deploy.yml`. Merging this branch is what
+ships it — see [`worker/README.md`](../worker/README.md).
 
 ---
 
@@ -111,7 +111,7 @@ what the dashboard shows from the fixture. Met.
 
 ---
 
-## Phase 3 — The API over D1 ✅ built, not yet deployed
+## Phase 3 — The API over D1 ✅ built, deploys automatically on merge
 
 The browser stops reading a file and starts reading the database.
 
@@ -135,7 +135,7 @@ static site would call it cross-origin (CORS is handled in
 | `GET /api/reference/:entity` | Departments, systems, processes, people, categories | ✅ |
 | `GET /api/search` | Not in the original table; added as the natural REST mirror of the `search` tool | ✅ |
 | Swap `api.js` to read from D1 | Done via `GET /api/export`, which returns the exact shape of `demo.json` — `index()` and every page are unchanged. Set `window.MERIDIAN_API_BASE` to switch; unset keeps the fixture | ✅ |
-| Deploy `worker/` | Needs `npx wrangler deploy` with real credentials | ⬜ next step |
+| Deploy `worker/` | `.github/workflows/deploy-risk-mcp.yml` runs on push to `main` | ✅ automatic on merge |
 
 **Key decisions taken here**
 
@@ -157,7 +157,7 @@ data).
 
 ---
 
-## Phase 4 — The MCP server, read tools ✅ built, not yet deployed
+## Phase 4 — The MCP server, read tools ✅ built, deploys automatically on merge
 
 The actual point of the exercise.
 
@@ -169,7 +169,7 @@ The actual point of the exercise.
 | `risk_summary` | One call answers "how are we doing?" | ✅ |
 | `list_reference`, `search` | Name-to-id resolution, and a keyword entry point | ✅ |
 | Tool annotations | `readOnlyHint: true`, `idempotentHint: true` on all eight | ✅ |
-| Connect from Claude and rehearse | Against `docs/demo-script.md` | ⬜ needs `worker/` deployed first |
+| Connect from Claude and rehearse | Against `docs/demo-script.md` | ⬜ once merged and live |
 
 Full argument and return specification: [`docs/mcp-server.md`](mcp-server.md).
 

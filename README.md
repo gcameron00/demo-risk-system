@@ -9,7 +9,7 @@ The project has three parts:
 |---|---|---|
 | **Database** | A Cloudflare D1 (SQLite) schema for operational risk — incidents, actions, controls, departments, people, processes and systems, with real relationships between them | **Built and provisioned** — `db/schema.sql`, `db/seed.sql` are loaded into a live `risk_demo` D1 database |
 | **Web interface** | A static dashboard and three registers over that data — no framework, no build step | **Built** — this is what deploys today, still reading `assets/data/demo.json` by default |
-| **MCP server** | A Cloudflare Worker exposing the database to Claude as a small set of MCP tools | **Built, not yet deployed** — a second Worker in [`worker/`](worker/) implements the full read surface from [`docs/mcp-server.md`](docs/mcp-server.md); see [`worker/README.md`](worker/README.md) to deploy it |
+| **MCP server** | A Cloudflare Worker exposing the database to Claude as a small set of MCP tools | **Built, deploys automatically on merge to `main`** — a second Worker in [`worker/`](worker/) implements the full read surface from [`docs/mcp-server.md`](docs/mcp-server.md); see [`worker/README.md`](worker/README.md) |
 
 Everything in the dataset is fictional. Meridian Financial Group, its staff and
 every incident in the register were written for this demo.

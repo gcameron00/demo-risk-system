@@ -15,14 +15,25 @@ rest of this repository.
 
 The `risk_demo` D1 database has already been provisioned and seeded (phase 2
 of `docs/implementation-plan.md`), and its `database_id` is already in
-`wrangler.toml` below. From this directory:
+`wrangler.toml` below.
+
+**Automatic:** `.github/workflows/deploy-risk-mcp.yml` runs `wrangler deploy`
+from this directory on every push to `main` that touches `worker/**`, reusing
+the `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` secrets `deploy.yml`
+already uses for the static site. Merging this branch to `main` deploys it —
+no separate setup needed, as long as that token can deploy a second Worker in
+the same account. It can also be run on demand from the Actions tab
+(`workflow_dispatch`).
+
+**Manual**, if you'd rather not wait for CI or want to test locally first:
 
 ```bash
 cd worker
 npx wrangler deploy
 ```
 
-Note the `*.workers.dev` URL wrangler prints — you'll need it for both steps
+Either way, note the `*.workers.dev` URL wrangler prints (or check the
+Cloudflare dashboard after the Action runs) — you'll need it for both steps
 below.
 
 ## Wire up the browser UI (optional)
